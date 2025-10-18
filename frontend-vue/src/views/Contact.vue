@@ -1,10 +1,8 @@
 <script setup>
-import axios from 'axios'
 import { ref, onMounted } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+import api from '@/services/api'
 
 const form = ref({ 
   name: '', 
@@ -13,6 +11,7 @@ const form = ref({
   message: '' 
 })
 
+const companyInfo = ref(null)
 const errors = ref({})
 const isSubmitting = ref(false)
 const showSuccess = ref(false)
@@ -47,7 +46,7 @@ async function send() {
   isSubmitting.value = true
   
   try {
-    await axios.post(`${API}/api/leads`, form.value)
+    await api.submitLead(form.value)
     showSuccess.value = true
     form.value = { name: '', email: '', phone: '', message: '' }
     
@@ -61,26 +60,89 @@ async function send() {
   }
 }
 
-onMounted(() => {
-  const map = L.map('map').setView([5.345317, -4.024429], 13)
+// Fonction pour valider et parser les coordonnées
+function parseCoordinate(value, defaultValue) {
+  if (!value) return defaultValue
   
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-    maxZoom: 19,
-    attribution: '© OpenStreetMap contributors'
-  }).addTo(map)
+  // Nettoyer la valeur (enlever espaces, virgules au lieu de points, etc.)
+  const cleaned = String(value).trim().replace(',', '.')
+  const parsed = parseFloat(cleaned)
   
-  const customIcon = L.divIcon({
-    className: 'custom-marker',
-    html: '<div style="background:#0d7c8c;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.3)"><div style="width:10px;height:10px;background:#ff0000;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg)"></div></div>',
-    iconSize: [30, 30],
-    iconAnchor: [15, 30]
-  })
+  // Vérifier que c'est un nombre valide
+  if (isNaN(parsed)) {
+    console.warn(` Coordonnée invalide: "${value}" - Utilisation de la valeur par défaut: ${defaultValue}`)
+    return defaultValue
+  }
   
-  L.marker([5.345317, -4.024429], { icon: customIcon })
-    .addTo(map)
-    .bindPopup('<strong>Sankofa Afrik</strong><br>Abidjan, Côte d\'Ivoire')
+  return parsed
+}
+
+onMounted(async () => {
+  try {
+    // Récupérer les informations de l'entreprise
+    companyInfo.value = await api.getCompanyInfo()
+    console.log(' Company Info reçue:', companyInfo.value)
+  } catch (e) {
+    console.warn(' Impossible de charger les infos de l\'entreprise', e)
+  }
+
+  // Coordonnées par défaut (Abidjan - Cocody)
+  const DEFAULT_LAT = 5.3622428
+  const DEFAULT_LNG = -3.9915301
+  const DEFAULT_ZOOM = 13
+
+  // Parser les coordonnées avec validation
+  const lat = parseCoordinate(
+    companyInfo.value?.location?.latitude,
+    DEFAULT_LAT
+  )
   
-  // Scroll animations
+  const lng = parseCoordinate(
+    companyInfo.value?.location?.longitude,
+    DEFAULT_LNG
+  )
+  
+  const zoom = parseInt(companyInfo.value?.location?.map_zoom || DEFAULT_ZOOM)
+
+  console.log(` Initialisation carte: lat=${lat}, lng=${lng}, zoom=${zoom}`)
+
+  // Vérification finale avant d'initialiser la carte
+  if (isNaN(lat) || isNaN(lng)) {
+    console.error(' Coordonnées invalides après parsing, utilisation des valeurs par défaut')
+    lat = DEFAULT_LAT
+    lng = DEFAULT_LNG
+  }
+
+  // Initialiser la carte Leaflet
+  try {
+    const map = L.map('map').setView([lat, lng], zoom)
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map)
+
+    // Icône personnalisée
+    const customIcon = L.divIcon({
+      className: 'custom-marker',
+      html: '<div style="background:#0d7c8c;width:30px;height:30px;border-radius:50%;position:relative;"><div style="position:absolute;left:50%;top:50%;width:14px;height:14px;background:#fff;border-radius:50%;transform:translate(-50%,-50%)"></div><div style="position:absolute;left:50%;top:100%;width:14px;height:14px;background:#0d7c8c;border-radius:2px;transform:translate(-50%,-50%) rotate(45deg)"></div></div>',
+      iconSize: [30, 30],
+      iconAnchor: [15, 30]
+    })
+    
+    const companyName = companyInfo.value?.contact?.company_name || 'Sankofa Afrik'
+    const address = companyInfo.value?.contact?.address || 'Abidjan, Côte d\'Ivoire'
+    
+    L.marker([lat, lng], { icon: customIcon })
+      .addTo(map)
+      .bindPopup(`<strong>${companyName}</strong><br>${address}`)
+
+    console.log(' Carte initialisée avec succès')
+  } catch (error) {
+    console.error(' Erreur lors de l\'initialisation de la carte:', error)
+  }
+
+  // Animation des éléments au scroll
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -115,7 +177,7 @@ onMounted(() => {
             </svg>
           </div>
           <h3>Adresse</h3>
-          <p>Abidjan, 2 Plateau Valon immeuble Vanda RDC appartement 01<br>Côte d'Ivoire</p>
+          <p>{{ companyInfo?.contact?.address || "Abidjan, Cocody Riviera – Côte d'Ivoire" }}</p>
         </div>
 
         <div class="info-card">
@@ -125,7 +187,10 @@ onMounted(() => {
             </svg>
           </div>
           <h3>Téléphone</h3>
-          <p>+225 05 85 83 33 45<br>+225 05 85 83 33 45</p>
+          <p>{{ companyInfo?.contact?.phone_primary || "+225 01 02 03 04 05" }}</p>
+          <p v-if="companyInfo?.contact?.phone_secondary" style="font-size: 0.9em; opacity: 0.8;">
+            {{ companyInfo.contact.phone_secondary }}
+          </p>
         </div>
 
         <div class="info-card">
@@ -135,7 +200,7 @@ onMounted(() => {
             </svg>
           </div>
           <h3>Email</h3>
-          <p>contact@sankofaafrik.com<br>info@sankofaafrik.com</p>
+          <p>{{ companyInfo?.contact?.email || "contact@sankofaafrik.com" }}</p>
         </div>
 
         <div class="info-card">
@@ -145,11 +210,10 @@ onMounted(() => {
             </svg>
           </div>
           <h3>Horaires</h3>
-          <p>Lun - Ven: 8h - 17h<br>Sam: 9h - 13h</p>
+          <p v-html="companyInfo?.contact?.hours || 'Lun - Ven: 8h - 18h<br>Sam: 9h - 13h'"></p>
         </div>
       </section>
 
-    
       <section class="contact-content">
         <div class="form-section fade-in">
           <h2 class="section-title">Envoyez-nous un message</h2>
@@ -157,7 +221,6 @@ onMounted(() => {
             Remplissez le formulaire ci-dessous et nous vous répondrons dans les plus brefs délais
           </p>
 
-    
           <div v-if="showSuccess" class="success-message">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -232,21 +295,10 @@ onMounted(() => {
 
         <div class="map-section fade-in">
           <h2 class="section-title">Notre localisation</h2>
-  <p class="section-subtitle">
-    Visitez notre agence à Abidjan pour discuter de vos projets immobiliers
-  </p>
-
-  <div id="map" class="map-container">
-    <iframe
-      src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d899.5818814154741!2d-3.9924955405160776!3d5.362001626150351!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e1!3m2!1sfr!2sci!4v1759998719201!5m2!1sfr!2sci"
-      width="100%"
-      height="450"
-      style="border:0; border-radius: 12px;"
-      allowfullscreen=""
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade">
-    </iframe>
-  </div>
+          <p class="section-subtitle">
+            Visitez notre agence à Abidjan pour discuter de vos projets immobiliers
+          </p>
+          <div id="map" class="map-container"></div>
         </div>
       </section>
 
@@ -274,7 +326,7 @@ onMounted(() => {
     </div>
 
     <a 
-      href="https://wa.me/2250749781485" 
+      :href="`https://wa.me/${companyInfo?.contact?.whatsapp || '2250102030405'}`"
       target="_blank" 
       class="whatsapp-btn"
       aria-label="Contactez-nous sur WhatsApp"
@@ -285,5 +337,3 @@ onMounted(() => {
     </a>
   </div>
 </template>
-
-

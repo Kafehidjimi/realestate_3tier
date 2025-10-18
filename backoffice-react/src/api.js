@@ -16,6 +16,7 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
+    console.error("❌ Request error:", error)
     return Promise.reject(error)
   },
 )
@@ -23,6 +24,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error("❌ Response error:", error.response || error)
+    
     if (error.response?.status === 401) {
       localStorage.removeItem("token")
       window.location.href = "/login"
@@ -32,4 +35,3 @@ api.interceptors.response.use(
 )
 
 export default api
-

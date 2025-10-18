@@ -1,4 +1,5 @@
-import { Routes, Route, Link } from "react-router-dom"
+import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom"
+import { useEffect, useState } from "react"
 import Dashboard from "./pages/Dashboard"
 import Clients from "./pages/Clients"
 import Deals from "./pages/Deals"
@@ -11,13 +12,25 @@ import Services from "./pages/Services"
 import Properties from "./pages/Properties"
 import "./styles.css"
 
-export default function App() {
+// Composant pour protéger les routes
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem("token")
+  
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return children
+}
+
+// Layout avec navigation (seulement pour les pages protégées)
+function AppLayout({ children }) {
   return (
     <div className="app-wrapper">
       <nav className="main-nav">
         <div className="nav-container">
           <div className="logo">
-            <span className="logo-text">Interface d’administration</span>
+            <span className="logo-text">Interface d'administration</span>
             <span className="logo-subtitle">Sankofa Afrik</span>
           </div>
           <div className="nav-links">
@@ -28,7 +41,7 @@ export default function App() {
               Services
             </Link>
             <Link to="/properties" className="nav-link">
-              Biens
+              Offres
             </Link>
             <Link to="/projects" className="nav-link">
               Projets
@@ -48,29 +61,54 @@ export default function App() {
             <Link to="/expenses" className="nav-link">
               Dépenses
             </Link>
-            <a className="btn-site" href="http://localhost:5173">
-              Aller au site
-            </a>
+            <button 
+              className="btn-site"
+              onClick={() => {
+                localStorage.removeItem("token")
+                window.location.href = "/login"
+              }}
+            >
+              Déconnexion
+            </button>
           </div>
         </div>
       </nav>
 
       <main className="main-content">
         <div className="container">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/properties" element={<Properties />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/deals" element={<Deals />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/payments" element={<Payments />} />
-            <Route path="/expenses" element={<Expenses />} />
-          </Routes>
+          {children}
         </div>
       </main>
     </div>
+  )
+}
+
+export default function App() {
+  const location = useLocation()
+  const isLoginPage = location.pathname === "/login"
+
+  return (
+    <>
+      {isLoginPage ? (
+        <Routes>
+          <Route path="/login" element={<Login />} />
+        </Routes>
+      ) : (
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
+            <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
+            <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
+            <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+            <Route path="/deals" element={<ProtectedRoute><Deals /></ProtectedRoute>} />
+            <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+            <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppLayout>
+      )}
+    </>
   )
 }

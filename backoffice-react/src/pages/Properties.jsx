@@ -49,16 +49,16 @@ export default function Properties() {
 
   return (
     <div className="container">
-      <h1 className="page-title">Biens immobiliers</h1>
+      <h1 className="page-title">Offres immobiliers</h1>
 
       {/* Formulaire d’ajout */}
       <div className="card">
-        <h2 className="section-title">Ajouter un bien</h2>
+        <h2 className="section-title">Ajouter une offres</h2>
         <div className="grid-form">
           <div>
             <label>Titre</label>
             <input
-              placeholder="Titre du bien"
+              placeholder="Titre de l'offre"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value, slug: slugify(e.target.value) })}
             />
@@ -122,14 +122,14 @@ export default function Properties() {
           </div>
 
           <button className="btn btn-primary" onClick={create}>
-            Ajouter le bien
+            Ajouter l'offre
           </button>
         </div>
       </div>
 
       {/* Liste des biens */}
       <div className="card">
-        <h2 className="section-title">Liste des biens</h2>
+        <h2 className="section-title">Liste des offres</h2>
         <div className="table-container">
           <table className="table">
             <thead>
@@ -145,7 +145,7 @@ export default function Properties() {
               {items.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="empty-message">
-                    Aucun bien enregistré
+                    Aucune offres enregistré
                   </td>
                 </tr>
               ) : (

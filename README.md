@@ -8,7 +8,7 @@
 ```
 cd backend
 cp .env.example .env
-# Mettez votre DATABASE_URL MySQL (ex: mysql://root:root@localhost:3306/amenageur)
+# Mettez votre DATABASE_URL MySQL (ex: mysql://root:@localhost:3306/amenageur)
 npm install
 npm run prisma:generate
 npm run prisma:migrate

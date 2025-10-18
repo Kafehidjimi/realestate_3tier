@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import api from "../api"
@@ -8,17 +6,29 @@ export default function Login() {
   const [email, setEmail] = useState("admin@example.com")
   const [password, setPassword] = useState("admin123")
   const [err, setErr] = useState("")
+  const [loading, setLoading] = useState(false)
   const nav = useNavigate()
+
   async function submit(e) {
     e.preventDefault()
+    setErr("")
+    setLoading(true)
+
     try {
+      console.log("🔐 Tentative de connexion...", { email })
       const { data } = await api.post("/api/auth/login", { email, password })
+      
+      console.log("✅ Connexion réussie:", data)
       localStorage.setItem("token", data.token)
       nav("/")
     } catch (e) {
-      setErr("Identifiants invalides")
+      console.error("❌ Erreur de connexion:", e.response || e)
+      setErr(e.response?.data?.error || "Identifiants invalides")
+    } finally {
+      setLoading(false)
     }
   }
+
   return (
     <div
       style={{
@@ -37,6 +47,7 @@ export default function Login() {
           </h1>
           <p style={{ color: "var(--text-light)", fontSize: "0.95rem" }}>Accédez à votre espace d'administration</p>
         </div>
+        
         {err && (
           <div
             style={{
@@ -52,6 +63,7 @@ export default function Login() {
             {err}
           </div>
         )}
+        
         <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           <div>
             <label
@@ -72,8 +84,10 @@ export default function Login() {
               placeholder="admin@exemple.com"
               style={{ width: "100%", padding: "0.75rem" }}
               required
+              disabled={loading}
             />
           </div>
+          
           <div>
             <label
               style={{
@@ -93,12 +107,19 @@ export default function Login() {
               placeholder="••••••••"
               style={{ width: "100%", padding: "0.75rem" }}
               required
+              disabled={loading}
             />
           </div>
-          <button className="btn btn-primary" style={{ width: "100%", padding: "0.875rem", fontSize: "1rem" }}>
-            Se connecter
+          
+          <button 
+            className="btn btn-primary" 
+            style={{ width: "100%", padding: "0.875rem", fontSize: "1rem" }}
+            disabled={loading}
+          >
+            {loading ? "Connexion..." : "Se connecter"}
           </button>
         </form>
+        
         <div style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.875rem", color: "var(--text-light)" }}>
           <p>Identifiants par défaut :</p>
           <p style={{ fontFamily: "monospace", marginTop: "0.5rem" }}>admin@example.com / admin123</p>

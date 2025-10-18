@@ -43,8 +43,7 @@ export async function excelTransactions({ properties, services, deals, invoices,
     rows.forEach(r => ws.addRow(r))
     return ws
   }
-  addSheet('Properties', properties) 
-  addSheet('projects', projects)
+  addSheet('Properties', properties)
   addSheet('Services', services)
   addSheet('Deals', deals)
   addSheet('Invoices', invoices)

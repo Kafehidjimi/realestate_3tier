@@ -1,13 +1,11 @@
 <script setup>
-import axios from 'axios'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import api from '@/services/api'
 
 const services = ref([])
 const properties = ref([])
 const projects = ref([])
 
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-const currentSlide = ref(0)
 const hoveredProject = ref(null)
 const hoveredProperty = ref(null)
 const statsVisible = ref(false)
@@ -23,7 +21,9 @@ const sectionsVisible = ref({
   properties: false,
   cta: false
 })
-let slideInterval = null
+
+// ⬇️ IMAGE STATIQUE (plus de slide)
+const heroImage = '/images/hero25.png'  // ⬅️ Change l'image ici si besoin
 
 const observeSections = () => {
   const observer = new IntersectionObserver(
@@ -43,7 +43,6 @@ const observeSections = () => {
     { threshold: 0.2 }
   )
 
-  // Observe all sections
   document.querySelectorAll('[data-section]').forEach((section) => {
     observer.observe(section)
   })
@@ -71,50 +70,56 @@ const animateCounters = () => {
   }
 
   animate(250, 'biens', '+')
-  animate(5, 'annees', '+')
+  animate(15, 'annees', '+')
   animate(98, 'satisfaction', '%')
   animate(50, 'projets', '+')
 }
 
 onMounted(async () => {
   try {
-    services.value = (await axios.get(`${API}/api/services`)).data
-    properties.value = (await axios.get(`${API}/api/properties`)).data.slice(0, 6)
-    projects.value = (await axios.get(`${API}/api/projects`)).data.slice(0, 6)
+    services.value = await api.getServices()
+    
+    const propsData = await api.getProperties()
+    if (Array.isArray(propsData)) {
+      properties.value = propsData.slice(0, 6).map(p => ({
+        ...p,
+        mainImage: api.getImageUrl(p.mainImage)
+      }))
+    } else {
+      console.error('Properties data is not an array:', propsData)
+      properties.value = []
+    }
+
+    const projRows = await api.getProjects()
+      projects.value = projRows.map(r => ({
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        category: r.category || r.status || 'Projet',
+        location: r.location || '',
+        image: api.getImageUrl(
+          r.coverImage || (r.medias?.find(m => m.kind === 'image')?.url) || '/placeholder.svg'
+        ),
+        year: r.startedAt ? String(new Date(r.startedAt).getFullYear()) : ''
+      }))
   } catch (error) {
     console.error('Error loading data:', error)
   }
-  
-  // Auto-slide hero
-  slideInterval = setInterval(() => {
-    currentSlide.value = (currentSlide.value + 1) % 3
-  }, 5000)
 
   setTimeout(() => {
     observeSections()
   }, 100)
 })
-
-onUnmounted(() => {
-  if (slideInterval) {
-    clearInterval(slideInterval)
-  }
-})
 </script>
 
 <template>
   <div class="home-page">
+    <!-- ⬇️ HERO AVEC IMAGE STATIQUE -->
     <section class="hero-section">
-      <div class="hero-slides">
-        <div 
-          v-for="(slide, index) in 3" 
-          :key="index"
-          class="hero-slide"
-          :class="{ active: currentSlide === index }"
-          :style="{ backgroundImage: `url('/placeholder.svg?height=800&width=1600')` }"
-        ></div>
-      </div>
-      <div class="hero-overlay">
+      <div class="hero-background" :style="{ backgroundImage: `url('${heroImage}')` }"></div>
+      
+      <!-- ⬇️ OVERLAY SANS COULEUR BLEUE -->
+      <div class="hero-overlay-minimal">
         <div class="hero-content"> 
           <div class="hero-logo">
             <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-sTS9PORiyTNWvChLYWKvUMchFAJSMa.png" alt="Sankofa Afrik" class="logo-image" />
@@ -123,10 +128,12 @@ onUnmounted(() => {
             <span class="hero-title-line">Votre satisfaction,</span>
             <span class="hero-title-line">est notre priorité absolue</span>
           </h1>
+          
           <p class="hero-subtitle">Immobilier d'exception à Abidjan</p>
+          
           <div class="hero-actions">
             <RouterLink to="/biens" class="btn btn-primary">
-              <span>Découvrir nos biens</span>
+              <span>Découvrir nos offres</span>
               <i class="fa fa-arrow-right"></i>
             </RouterLink>
             <RouterLink to="/contact" class="btn btn-secondary">
@@ -136,16 +143,7 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-      <div class="hero-indicators">
-        <button 
-          v-for="i in 3" 
-          :key="i"
-          @click="currentSlide = i - 1"
-          class="indicator"
-          :class="{ active: currentSlide === i - 1 }"
-          :aria-label="`Slide ${i}`"
-        ></button>
-      </div>
+      
       <div class="scroll-indicator">
         <div class="scroll-mouse">
           <div class="scroll-wheel"></div>
@@ -162,13 +160,13 @@ onUnmounted(() => {
               <i class="fa fa-home"></i>
             </div>
             <div class="stat-number">{{ animatedStats.biens || '250+' }}</div>
-            <div class="stat-label">Biens vendus</div>
+            <div class="stat-label">Offres vendues</div>
           </div>
           <div class="stat-item" :class="{ visible: statsVisible }">
             <div class="stat-icon">
               <i class="fa fa-calendar"></i>
             </div>
-            <div class="stat-number">{{ animatedStats.annees || '5+' }}</div>
+            <div class="stat-number">{{ animatedStats.annees || '15+' }}</div>
             <div class="stat-label">Années d'expérience</div>
           </div>
           <div class="stat-item" :class="{ visible: statsVisible }">
@@ -189,7 +187,8 @@ onUnmounted(() => {
       </div>
     </section>
  
-
+   
+ 
     <section class="services-section" data-section="services">
       <div class="container">
         <div class="section-header" :class="{ visible: sectionsVisible.services }">
@@ -206,13 +205,24 @@ onUnmounted(() => {
             :class="{ visible: sectionsVisible.services }"
             :style="{ animationDelay: `${index * 0.1}s` }"
           >
-            <div class="service-icon-wrapper">
-              <div class="service-icon">{{ s.icon || '🏗️' }}</div>
-              <div class="icon-bg"></div>
+            <div class="service-number">{{ String(index + 1).padStart(2, '0') }}</div>
+            
+            <div class="service-icon">
+              <img 
+                v-if="s.icon" 
+                :src="`http://localhost:3000${s.icon}`" 
+                :alt="s.title || s.name"
+                class="service-icon-img"
+                @error="(e) => e.target.style.display = 'none'"
+              />
+              <span v-else class="service-icon-placeholder">🗂️</span>
             </div>
-            <h3 class="service-title">{{ s.name }}</h3>
+            
+            <h3 class="service-title">{{ s.title || s.name }}</h3>
             <p class="service-description">{{ s.description }}</p>
-            <div class="service-hover-effect"></div>
+            <div class="service-arrow">
+              <i class="fa fa-arrow-right"></i>
+            </div>
           </div>
           <p v-if="!services.length" class="empty-state">Aucun service disponible pour le moment.</p>
         </div>
@@ -223,8 +233,8 @@ onUnmounted(() => {
       <div class="container">
         <div class="section-header" :class="{ visible: sectionsVisible.properties }">
           <span class="section-number">02</span>
-          <h2 class="section-title">Biens en Vitrine</h2>
-          <p class="section-subtitle">Sélection de nos biens d'exception disponibles</p>
+          <h2 class="section-title">Offres en Vitrine</h2>
+          <p class="section-subtitle">Sélection de nos offres d'exception disponibles</p>
         </div>
         
         <div class="properties-grid">
@@ -238,8 +248,8 @@ onUnmounted(() => {
             @mouseleave="hoveredProperty = null"
           >
             <div class="property-image-wrapper">
-              <img :src="p.mainImage || '/images/prop9.jpg'" :alt="p.title" class="property-image">
-              <span class="property-badge">{{ p.status }}</span>
+              <img :src="p.mainImage || '/placeholder.svg?height=400&width=600'" :alt="p.title" class="property-image">
+              <span class="property-badge">{{ p.status === 'sale' ? 'À vendre' : p.status === 'rent' ? 'À louer' : 'Vendu' }} </span>
               <div class="property-hover-overlay" :class="{ visible: hoveredProperty === p.id }">
                 <RouterLink :to="`/biens/${p.slug}`" class="property-view-btn">
                   <i class="fa fa-eye"></i>
@@ -252,20 +262,23 @@ onUnmounted(() => {
                 <RouterLink :to="`/biens/${p.slug}`">{{ p.title }}</RouterLink>
               </h3>
               <p class="property-location">
-                <i class="fa fa-map-marker"></i>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
                 {{ p.location }}
               </p>
               <div v-if="p.price" class="property-price">
-                {{ new Intl.NumberFormat().format(p.price) }} FCFA
+                À partir de {{ new Intl.NumberFormat().format(p.price) }} FCFA
               </div>
             </div>
           </div>
-          <p v-if="!properties.length" class="empty-state">Aucun bien disponible pour le moment.</p>
+          <p v-if="!properties.length" class="empty-state">Aucune offre disponible pour le moment.</p>
         </div>
         
         <div class="section-cta" :class="{ visible: sectionsVisible.properties }">
           <RouterLink to="/biens" class="btn btn-primary btn-large">
-            <span>Voir tous les biens</span>
+            <span>Voir toutes les offres</span>
             <i class="fa fa-arrow-right"></i>
           </RouterLink>
         </div>
@@ -281,38 +294,41 @@ onUnmounted(() => {
         </div>
         
         <div class="projects-grid">
-          <div 
-            v-for="(project, index) in projects" 
-            :key="project.id"
-            class="project-card"
-            :class="{ visible: sectionsVisible.projects }"
-            :style="{ animationDelay: `${index * 0.1}s` }"
-            @mouseenter="hoveredProject = project.id"
-            @mouseleave="hoveredProject = null"
-          >
-            <div class="project-image-wrapper">
-              <img :src="project.image" :alt="project.title" class="project-image" />
-              <div class="project-overlay" :class="{ visible: hoveredProject === project.id }">
-                <div class="project-year">{{ project.year }}</div>
-                <div class="project-view">
-                  <i class="fa fa-search-plus"></i>
-                  <span>Voir le projet</span>
-                </div>
+                  <RouterLink 
+          :to="`/projets/${project.slug}`"
+          v-for="(project, index) in projects" 
+          :key="project.id"
+          class="project-card"
+          :class="{ visible: sectionsVisible.projects }"
+          :style="{ animationDelay: `${index * 0.1}s` }"
+          @mouseenter="hoveredProject = project.id"
+          @mouseleave="hoveredProject = null"
+        >
+          <div class="project-image-wrapper">
+            <img :src="project.image" :alt="project.title" class="project-image" />
+            <div class="project-overlay" :class="{ visible: hoveredProject === project.id }">
+              <div class="project-year">{{ project.year }}</div>
+              <div class="project-view">
+                <i class="fa fa-search-plus"></i>
+                <span>Voir le projet</span>
               </div>
             </div>
-            <div class="project-info">
-              <span class="project-category">{{ project.category }}</span>
-              <h3 class="project-title">{{ project.title }}</h3>
-              <p class="project-location">
-                <i class="fa fa-map-marker"></i>
-                {{ project.location }}
-              </p>
-            </div>
           </div>
+          <div class="project-info">
+            <span class="project-category">{{ project.category }}</span>
+            <h3 class="project-title">{{ project.title }}</h3>
+            <p class="project-location">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+              {{ project.location }}
+            </p>
+          </div>
+        </RouterLink>
         </div>
       </div>
     </section>
-
     <section class="cta-section" data-section="cta">
       <div class="container">
         <div class="cta-content" :class="{ visible: sectionsVisible.cta }">
@@ -330,3 +346,103 @@ onUnmounted(() => {
     </section>
   </div>
 </template>
+
+<style scoped>
+/* ⬇️ NOUVEAU STYLE POUR IMAGE STATIQUE */
+.hero-background {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.project-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+/* ⬇️ OVERLAY MINIMAL (sans couleur bleue) */
+.hero-overlay-minimal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45); /* Seulement un assombrissement léger */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sticker Services */
+.service-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.service-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.service-icon {
+  width: 80px;
+  height: 80px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 10px rgba(13, 124, 140, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.service-icon::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 22px;
+  background: radial-gradient(
+    60% 60% at 50% 50%,
+    rgba(13, 124, 140, 0.12) 0%,
+    rgba(10, 95, 109, 0.08) 60%,
+    transparent 100%
+  );
+  z-index: 0;
+  transform: scale(1);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  opacity: 0.9;
+}
+.service-card:hover .service-icon::before {
+  transform: scale(1.06);
+  opacity: 1;
+}
+
+.service-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+  -webkit-user-drag: none;
+  transition: transform 0.25s ease;
+  position: relative;
+  z-index: 1;
+}
+.service-card:hover .service-icon-img {
+  transform: scale(1.06);
+}
+
+.service-icon-placeholder {
+  font-size: 2rem;
+  opacity: 0.7;
+  position: relative;
+  z-index: 1;
+}
+
+.service-arrow {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.service-card:hover .service-arrow {
+  transform: translateX(2px);
+  opacity: 0.95;
+}
+</style>
