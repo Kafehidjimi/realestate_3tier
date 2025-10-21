@@ -69,10 +69,10 @@ const animateCounters = () => {
     }, stepDuration)
   }
 
-  animate(250, 'biens', '+')
-  animate(15, 'annees', '+')
+  animate(200, 'biens', '+')
+  animate(5, 'annees', '+')
   animate(98, 'satisfaction', '%')
-  animate(50, 'projets', '+')
+  animate(15, 'projets', '+')
 }
 
 onMounted(async () => {
@@ -159,14 +159,14 @@ onMounted(async () => {
             <div class="stat-icon">
               <i class="fa fa-home"></i>
             </div>
-            <div class="stat-number">{{ animatedStats.biens || '250+' }}</div>
+            <div class="stat-number">{{ animatedStats.biens || '200+' }}</div>
             <div class="stat-label">Offres vendues</div>
           </div>
           <div class="stat-item" :class="{ visible: statsVisible }">
             <div class="stat-icon">
               <i class="fa fa-calendar"></i>
             </div>
-            <div class="stat-number">{{ animatedStats.annees || '15+' }}</div>
+            <div class="stat-number">{{ animatedStats.annees || '5+' }}</div>
             <div class="stat-label">Années d'expérience</div>
           </div>
           <div class="stat-item" :class="{ visible: statsVisible }">
@@ -180,7 +180,7 @@ onMounted(async () => {
             <div class="stat-icon">
               <i class="fa fa-building"></i>
             </div>
-            <div class="stat-number">{{ animatedStats.projets || '50+' }}</div>
+            <div class="stat-number">{{ animatedStats.projets || '15+' }}</div>
             <div class="stat-label">Projets réalisés</div>
           </div>
         </div>

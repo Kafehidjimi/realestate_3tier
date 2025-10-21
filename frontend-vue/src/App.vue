@@ -38,7 +38,6 @@
             <div class="footer-logo">
               <img src="/images/logo.png" alt="Sankofa Afrik" class="footer-logo-image" />
             </div>
-            <h3 class="footer-title">Sankofa Afrik</h3>
             <p class="footer-text">Votre partenaire immobilier de confiance à Abidjan</p>
           </div> &nbsp;
           <div class="footer-col">
